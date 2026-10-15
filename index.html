@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>接続詞日記</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: full-height two columns — editor with caret-anchored popup and character count on the left, connective list on the right */
+:root{
+  --bg:#F3F4F1; --paper:#FFFFFF; --fg:#1E2128; --muted:#636A75; --line:#DEE1DC;
+  --accent:#2F5E58; --accent-soft:#E2EEEB; --warn:#A5561A; --warn-soft:#F7E9DC;
+  --plus:#2B7856; --minus:#B03F35; --odd:#9A620E;
+  --serif:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+  --sans:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14171A; --paper:#1C2024; --fg:#E4E7EA; --muted:#9BA2AB; --line:#2E343A;
+  --accent:#7FC0B4; --accent-soft:#1F3330; --warn:#E5A266; --warn-soft:#3A2A1C;
+  --plus:#6FC59C; --minus:#E88D83; --odd:#E2B465; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14171A; --paper:#1C2024; --fg:#E4E7EA; --muted:#9BA2AB; --line:#2E343A;
+  --accent:#7FC0B4; --accent-soft:#1F3330; --warn:#E5A266; --warn-soft:#3A2A1C;
+  --plus:#6FC59C; --minus:#E88D83; --odd:#E2B465; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.6}
+.wrap{max-width:1320px;margin:0 auto;height:100vh;height:100dvh;padding:20px max(16px,env(safe-area-inset-right,0px)) 20px max(16px,env(safe-area-inset-left,0px));display:grid;grid-template-rows:auto minmax(0,1fr);gap:16px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.brand{font-family:var(--serif);font-weight:700;font-size:20px;margin-right:auto}
+.bar label{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13px}
+input[type=date],select,button{font:inherit;font-size:13px;color:var(--fg);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:5px 10px}
+button{cursor:pointer}
+button:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sheet{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-height:0}
+#ed,#mirror{font-family:var(--serif);font-size:17px;line-height:2;letter-spacing:.02em;padding:24px 28px 28px;width:100%;border:0;margin:0;white-space:pre-wrap;overflow-wrap:break-word;word-break:normal}
+#ed{display:block;flex:1 1 auto;min-height:0;height:100%;resize:none;overflow-y:auto;border-radius:8px;background:transparent;color:var(--fg);outline:none;}
+#mirror{position:absolute;visibility:hidden;top:0;left:0;pointer-events:none;overflow:hidden}
+.pop{position:absolute;z-index:10;width:min(340px,calc(100% - 24px));background:var(--paper);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.14);font-size:13.5px;overflow:hidden}
+.pophead{padding:10px 12px 8px;border-bottom:1px solid var(--line);display:grid;gap:2px}
+.pophead b{font-family:var(--serif);font-size:16px}
+.meta{color:var(--muted);font-size:12px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.kochu{color:var(--accent);font-size:12px}
+.pop ul{list-style:none;margin:0;padding:4px 0;max-height:260px;overflow-y:auto}
+.pop li{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:6px 12px;cursor:pointer}
+.pop li .cw{font-family:var(--serif);font-size:15px;font-weight:500}
+.pop li .cr{grid-column:1/-1;color:var(--muted);font-size:11.5px}
+.pop li[aria-selected="true"],.pop li:hover{background:var(--accent-soft)}
+.tags{display:flex;gap:4px;align-items:center}
+.tag{font-size:11px;padding:0 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.t-プラス{color:var(--plus);border-color:currentColor}.t-マイナス{color:var(--minus);border-color:currentColor}.t-意外{color:var(--odd);border-color:currentColor}
+.s-口語{border-style:dashed}.s-硬い{background:var(--fg);color:var(--paper);border-color:var(--fg)}
+.pophint{padding:6px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px}
+.empty{padding:10px 12px;color:var(--muted)}
+.usage{display:grid;gap:8px}
+.usage h2{font-size:13px;font-weight:500;color:var(--muted);margin:0;letter-spacing:.06em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:13px;padding:2px 10px;border-radius:999px;border:1px solid var(--line);background:var(--paper)}
+.chip.many{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.chip span{font-variant-numeric:tabular-nums;opacity:.75;margin-left:4px}
+.foot{display:flex;flex-wrap:wrap;gap:8px 16px;color:var(--muted);font-size:12.5px}
+.foot #status{margin-left:auto}
+.wrap>*{min-width:0}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;min-height:0}
+.left{display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:12px;min-width:0;min-height:0}
+.count{display:flex;align-items:baseline;gap:2px;justify-content:flex-end;color:var(--muted);font-size:13px;line-height:1.4}
+.count b{font-size:18px;font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums;margin-right:2px}
+.count span{font-size:12px;margin-left:4px}
+.dict{background:var(--paper);border:1px solid var(--line);border-radius:8px;min-height:0;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.dhead{padding:12px 16px 8px;font-weight:500;display:flex;gap:8px;align-items:baseline}
+.dhead small{color:var(--muted);font-weight:400;font-size:12.5px}
+.dtools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:0 16px 12px}
+.gbtn{font-size:12px;padding:2px 9px 2px 7px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
+.gi{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.gbtn:not([aria-pressed="true"]) .gi{color:var(--accent)}
+.gbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+#dq{font:inherit;font-size:13px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%;min-width:0}
+.dbox{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;border-top:1px solid var(--line)}
+.dict table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:13px}
+.dict col.c1{width:42%}
+.dict th,.dict td{text-align:left;padding:6px 12px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+.dict th{position:sticky;top:0;background:var(--paper);font-size:11.5px;font-weight:500;color:var(--muted);letter-spacing:.05em;z-index:1}
+.dict td.dw{font-family:var(--serif);font-size:15px;font-weight:500;line-height:1.4}
+.dict .dg{display:block;font-family:var(--sans);font-size:11px;font-weight:400;color:var(--accent);margin-top:2px}
+.dict .dr{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.dict .dm{display:block;font-size:13px;color:var(--fg);line-height:1.5;margin-bottom:3px}
+.dict .dr{font-size:12px;color:var(--muted)}
+.dict .dc{display:block;font-size:11.5px;color:var(--accent);margin-top:2px}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,42%);gap:12px}.foot{display:none}.wrap{gap:10px;padding-block:10px}
+  .dnote{display:none}.dhead{padding:8px 12px 4px}.dtools{padding:0 12px 8px;gap:4px}.gbtn{font-size:11px;padding:1px 7px 1px 5px}
+  .bar{gap:6px 8px}.brand{font-size:17px}.bar label{font-size:12px}.bar input,.bar select,.bar button{font-size:12px;padding:3px 7px}
+  #ed,#mirror{padding:14px 16px;font-size:16px}}
+.dict tbody tr{cursor:pointer}
+.dict tbody tr:hover{background:var(--accent-soft)}
+.dict tr.off{opacity:.4}
+.dict tr.near{background:var(--accent-soft)}
+.dict tr.cur td.dw{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.dnote{padding:8px 16px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+kbd{font-family:inherit;font-size:11.5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--paper)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">接続詞日記</div>
+    <label for="day">日付 <input type="date" id="day"></label>
+    <label for="pref">候補の文体
+      <select id="pref">
+        <option value="all">すべて</option>
+        <option value="casual">口語・中立のみ</option>
+        <option value="formal">中立・硬いのみ</option>
+      </select>
+    </label>
+    <button type="button" id="copy">本文をコピー</button>
+    <button type="button" id="export">テキストで保存</button>
+  </div>
+
+  <div class="main">
+  <div class="left">
+  <div class="sheet" id="sheet">
+    <div id="mirror" aria-hidden="true"></div>
+    <textarea id="ed" spellcheck="false" aria-label="日記の本文"></textarea>
+    <div class="pop" id="pop" hidden role="listbox" aria-label="言い換え候補"></div>
+  </div>
+
+  <div class="count" aria-live="polite"><b id="chars">0</b>文字<span>（改行を除く）</span></div>
+
+  <div class="foot">
+    <span><kbd>↓</kbd><kbd>Tab</kbd> 候補を選ぶ</span>
+    <span><kbd>Enter</kbd> 置き換える</span>
+    <span><kbd>Esc</kbd> 閉じる</span>
+    <span><kbd>Alt</kbd>+<kbd>↓</kbd> カーソル直前の語の候補を表示</span>
+    <span id="status"></span>
+  </div>
+  </div>
+
+  <aside class="dict" id="dict" aria-label="接続詞の一覧">
+    <div class="dhead">接続詞の一覧 <small id="dcount"></small></div>
+    <div class="dtools">
+      <div class="chips" id="dgroups"></div>
+      <input type="search" id="dq" placeholder="語・論理関係で検索" aria-label="接続詞を検索">
+    </div>
+    <div class="dbox">
+      <table>
+        <colgroup><col class="c1"><col></colgroup>
+        <thead><tr><th>語・グループ</th><th>意味・論理関係・トーン・文体</th></tr></thead>
+        <tbody id="drows"></tbody>
+      </table>
+    </div>
+    <div class="dnote">行をクリックするとカーソル位置に入力します。薄い行は「候補の文体」の設定で外れている語、色付きの行は入力中の語と同じグループです。</div>
+  </aside>
+  </div>
+</div>
+
+<script>
+// [語, 論理関係, グループ, トーン, 文体, 種類, 呼応する文末, 元の分類, メモ]
+const RAW = [["はじめに", "構成（導入）", "構成・転換", "中立", "中立", "副詞", "", "構成", ""], ["まず", "構成（順序）", "構成・転換", "中立", "中立", "副詞", "", "構成", "「次に」「最後に」と組で使うと骨組みが見える"], ["まずもって", "構成（順序）・強調", "構成・転換", "中立", "硬い", "副詞", "", "構成", "「何よりも先に」の強調を含む。挨拶文で多い"], ["次に", "構成（順序）", "構成・転換", "中立", "中立", "副詞", "", "構成", ""], ["最後に", "構成（締め）", "構成・転換", "中立", "中立", "副詞", "", "構成", ""], ["さて", "話題転換", "構成・転換", "中立", "中立", "接続詞", "", "話題", "本題への切り替え。段落頭向き"], ["ところで", "話題転換", "構成・転換", "中立", "中立", "接続詞", "", "話題", "本筋から外れる合図"], ["そういえば", "話題転換（連想）", "構成・転換", "中立", "口語", "句", "", "話題", ""], ["そうそう", "話題転換（想起）", "構成・転換", "中立", "口語", "感動詞", "", "話題", "かなりくだけた語り調"], ["それにしても", "話題転換（感想へ戻る）", "構成・転換", "意外", "口語", "接続詞", "", "話題", "直前の話を受けて感慨を述べる"], ["ついでにいっておくと", "補足（脱線）", "補足・制限", "中立", "口語", "句", "", "話題", "「ちなみに」に近い"], ["それはともかくとして", "話題転換（本筋へ戻る）", "構成・転換", "中立", "中立", "句", "", "話題", "脱線から戻る合図"], ["ふと", "時間（不意の想起）", "時間", "中立", "中立", "副詞", "", "話題", "話題転換のきっかけを作る副詞"], ["いざ", "時間（行動の局面）", "時間", "中立", "中立", "副詞", "いざ〜すると／いざとなると", "時間", "予想外の展開を導きやすい"], ["いつしか", "時間（気づかぬ経過）", "時間", "中立", "硬い", "副詞", "", "時間", "やや文学的"], ["いまは", "時間（現在）", "時間", "中立", "中立", "句", "", "時間", "過去との対比を作る"], ["いま思えば", "時間（回想）", "時間", "中立", "中立", "句", "", "時間", "語り手の現在の視点を挟む"], ["こうして", "時間（経過のまとめ）・帰結", "時間", "中立", "中立", "接続詞", "", "時間", "段落を締める働きもある"], ["このとき", "時間（時点）", "時間", "中立", "中立", "句", "", "時間", ""], ["さっそく", "時間（即時）", "時間", "中立", "中立", "副詞", "", "時間", ""], ["しばらく", "時間（継続）", "時間", "中立", "中立", "副詞", "", "時間", ""], ["そういうときに", "時間（場面）", "時間", "中立", "口語", "句", "", "時間", ""], ["それからもなおしばらく", "時間（継続）", "時間", "中立", "中立", "句", "", "時間", "長いので多用は避けたい"], ["それまで", "時間（以前）", "時間", "中立", "中立", "句", "", "時間", ""], ["たちまち", "時間（即時）", "時間", "中立", "中立", "副詞", "", "時間", ""], ["ちょうど", "時間（一致）", "時間", "中立", "中立", "副詞", "", "時間", "「ちょうどその頃」"], ["やがて", "時間（経過）", "時間", "中立", "中立", "副詞", "", "時間", ""], ["やっと", "時間（待望の到達）", "時間", "プラス", "中立", "副詞", "", "時間", "待ち望んだ気持ちを含む"], ["またしても", "反復", "時間", "マイナス", "中立", "副詞", "", "肯定", "うんざり感を含む"], ["いかにも", "評価（典型・もっともらしさ）", "評価・強調", "中立", "中立", "副詞", "", "肯定", "皮肉にも使える"], ["いずれにしたって", "総括", "順方向", "中立", "口語", "句", "", "肯定", ""], ["いずれにしろ", "総括", "順方向", "中立", "口語", "句", "", "肯定", ""], ["いずれにせよ", "総括", "順方向", "中立", "中立", "句", "", "肯定", "3つのうち最も文章向き"], ["いずれも", "総括（全体）", "順方向", "中立", "中立", "句", "", "肯定", "接続詞というより名詞＋助詞"], ["いちように", "総括（全体）", "順方向", "中立", "硬い", "副詞", "", "肯定", "漢字表記は「一様に」"], ["おそらく", "推量", "掘り下げ", "中立", "中立", "呼応副詞", "〜だろう／〜と思われる", "肯定", ""], ["おまけに", "累加", "順方向", "マイナス", "口語", "接続詞", "", "肯定", "悪いことが重なる場面で多い"], ["および", "並列", "順方向", "中立", "硬い", "接続詞", "", "肯定", "名詞どうしをつなぐ。文と文はつながない"], ["くどいようですが", "強調（念押し）", "評価・強調", "中立", "中立", "句", "", "肯定", "丁寧な前置き"], ["このへんは", "焦点化", "掘り下げ", "中立", "口語", "句", "", "肯定", ""], ["さいわい", "評価", "評価・強調", "プラス", "中立", "副詞", "", "肯定", ""], ["さすがに", "評価（予想どおり／限界）", "評価・強調", "中立", "中立", "副詞", "さすがに〜ない（限界の意）", "肯定", "肯定にも否定にも働く"], ["さらに", "累加", "順方向", "中立", "中立", "接続詞", "", "肯定", ""], ["しかたがないから", "順接（消極的）", "順方向", "マイナス", "口語", "句", "", "肯定", "論理は順接、感情はマイナス"], ["しかも", "累加", "順方向", "中立", "中立", "接続詞", "", "肯定", ""], ["すると", "順接（継起）", "順方向", "中立", "中立", "接続詞", "", "肯定", "次の出来事を引き出す"], ["そうして", "順接（継起）", "順方向", "中立", "中立", "接続詞", "", "肯定", ""], ["そして", "累加・継起", "順方向", "中立", "中立", "接続詞", "", "肯定", "最も無色。続くと単調になる"], ["そのへんは", "焦点化", "掘り下げ", "中立", "口語", "句", "", "肯定", ""], ["その上", "累加", "順方向", "中立", "中立", "接続詞", "", "肯定", ""], ["そりゃあ", "強調（当然）", "評価・強調", "中立", "口語", "句", "", "肯定", "かなりくだけた語り調"], ["それから", "累加・継起", "順方向", "中立", "中立", "接続詞", "", "肯定", ""], ["それだけでなく", "累加", "順方向", "中立", "中立", "句", "", "肯定", ""], ["それでは", "順接（帰結）・転換", "構成・転換", "中立", "中立", "接続詞", "", "肯定", "次の段階へ移る合図"], ["それと", "累加", "順方向", "中立", "口語", "接続詞", "", "肯定", ""], ["それどころか", "累加（程度を上げる）", "順方向", "中立", "中立", "接続詞", "", "肯定・具体", "前の内容を打ち消して上回る内容を出す。逆接的な面もある"], ["それに", "累加", "順方向", "中立", "口語", "接続詞", "", "肯定", ""], ["だいたい", "評価（批判の前置き）", "評価・強調", "マイナス", "口語", "副詞", "", "肯定", "「だいたい、〜がおかしい」。概数の意味もある"], ["ついでに", "累加（付随）", "順方向", "中立", "口語", "副詞", "", "肯定", ""], ["つけ加えると", "補足", "補足・制限", "中立", "中立", "句", "", "肯定", ""], ["ですから", "順接（帰結）", "順方向", "中立", "中立", "接続詞", "", "肯定", "「だから」の丁寧形"], ["というのと", "並列", "順方向", "中立", "口語", "句", "", "肯定", ""], ["なお", "補足", "補足・制限", "中立", "硬い", "接続詞", "", "肯定", "本筋と別の情報を添える"], ["なおかつ", "累加", "順方向", "中立", "中立", "接続詞", "", "肯定", "条件を両方満たす意"], ["ふつう", "前提（一般論）", "掘り下げ", "中立", "中立", "副詞", "", "肯定", "後に「しかし」が来る前振りになりやすい"], ["ほかにも", "累加", "順方向", "中立", "中立", "句", "", "肯定", ""], ["ましていわんや", "累加（程度の推論）", "順方向", "中立", "硬い", "接続詞", "〜はなおさらだ", "肯定・具体", "「まして」「いわんや」の重ね言葉。文語的"], ["また", "並列・累加", "順方向", "中立", "中立", "接続詞", "", "肯定", ""], ["まったく", "強調（呆れ）", "評価・強調", "マイナス", "口語", "副詞", "まったく〜ない（全否定）", "肯定", ""], ["もうひとつ", "累加", "順方向", "中立", "中立", "句", "", "肯定", ""], ["もちろん", "当然・譲歩", "評価・強調", "中立", "中立", "副詞", "もちろん〜だが（譲歩）", "肯定", "後に逆接を呼ぶことが多い"], ["もっとも", "制限（但し書き）", "補足・制限", "中立", "中立", "接続詞", "", "肯定・否定", "「ただし」に近い"], ["やれ", "列挙", "順方向", "マイナス", "口語", "感動詞", "やれ〜だ、やれ〜だ", "肯定", "不満を並べる場面で多い"], ["加えて", "累加", "順方向", "中立", "硬い", "接続詞", "", "肯定", ""], ["言い換えれば", "換言", "掘り下げ", "中立", "中立", "句", "", "肯定", ""], ["重ねて", "累加・念押し", "順方向", "中立", "硬い", "副詞", "", "肯定", "「重ねてお願い申し上げます」"], ["同様に", "並列（類比）", "順方向", "中立", "中立", "副詞", "", "肯定", ""], ["あまつさえ", "累加（悪い事態の上乗せ）", "順方向", "マイナス", "硬い", "副詞", "", "具体", "具体化ではなく累加"], ["いちおう", "評価（留保）", "評価・強調", "中立", "口語", "副詞", "", "具体", "断定を弱める"], ["いっそのこと", "選択（思い切った決断）", "選択・修正", "中立", "口語", "副詞", "", "具体", ""], ["いわば", "換言（比喩）", "掘り下げ", "中立", "中立", "副詞", "", "具体", ""], ["きっと", "推量（強）", "掘り下げ", "中立", "中立", "呼応副詞", "〜だろう／〜に違いない", "具体", ""], ["こういった", "指示（まとめ）", "掘り下げ", "中立", "中立", "連体詞", "", "具体", "前の内容を束ねる"], ["ここで", "焦点化・場面転換", "構成・転換", "中立", "中立", "句", "", "具体", ""], ["こちらは", "対比・焦点化", "逆接・対比", "中立", "中立", "句", "", "具体", "「あちらは〜、こちらは〜」"], ["ことに", "強調（特立）", "評価・強調", "中立", "硬い", "副詞", "", "具体", "「とりわけ」に近い"], ["したがって", "順接（帰結）", "順方向", "中立", "硬い", "接続詞", "", "具体", "具体化ではなくまとめの方向"], ["じつは", "開示（意外な事実）", "掘り下げ", "意外", "中立", "副詞", "", "具体", ""], ["すなわち", "換言", "掘り下げ", "中立", "硬い", "接続詞", "", "具体", ""], ["そうなると", "順接（推論）", "順方向", "中立", "中立", "句", "", "具体", ""], ["そこで", "順接（対応）", "順方向", "中立", "中立", "接続詞", "", "具体", "状況を受けて行動を起こす"], ["そこへいくと", "対比", "逆接・対比", "中立", "口語", "句", "", "具体", ""], ["そのせいか", "理由（推定）", "掘り下げ", "マイナス", "中立", "句", "", "具体", "原因が好ましくない場合に多い"], ["そのためだろうか", "理由（推定）", "掘り下げ", "中立", "中立", "句", "", "具体", ""], ["その結果", "順接（帰結）", "順方向", "中立", "中立", "句", "", "具体", ""], ["それだけに", "順接（程度相応）", "順方向", "中立", "中立", "接続詞", "", "具体", ""], ["それについては", "焦点化", "掘り下げ", "中立", "中立", "句", "", "具体", ""], ["だからこそ", "理由（強調）", "掘り下げ", "中立", "中立", "接続詞", "", "具体", ""], ["たとえ", "仮定（逆接条件）", "掘り下げ", "中立", "中立", "呼応副詞", "たとえ〜ても", "具体", ""], ["たとえば", "例示", "掘り下げ", "中立", "中立", "接続詞", "", "具体", ""], ["だとしたら", "仮定", "掘り下げ", "中立", "口語", "接続詞", "", "具体", ""], ["つまり", "換言・要約", "掘り下げ", "中立", "中立", "接続詞", "", "具体", "具体化にもまとめにも働く"], ["であればですよ", "仮定（念押し）", "掘り下げ", "中立", "口語", "句", "", "具体", "話し言葉そのもの"], ["では", "順接（帰結）・転換", "構成・転換", "中立", "中立", "接続詞", "", "具体", ""], ["ということは", "推論（帰結）", "順方向", "中立", "中立", "句", "", "具体", ""], ["というのも", "理由", "掘り下げ", "中立", "中立", "接続詞", "", "具体", ""], ["どうしても", "強調（不可避）", "評価・強調", "中立", "中立", "呼応副詞", "どうしても〜ない／〜たい", "具体", ""], ["どうせ", "評価（諦め）", "評価・強調", "マイナス", "口語", "副詞", "", "具体", ""], ["どうも", "推量（不確か）", "掘り下げ", "中立", "口語", "呼応副詞", "どうも〜ようだ", "具体", ""], ["どうやら", "推量", "掘り下げ", "中立", "中立", "呼応副詞", "どうやら〜らしい", "具体", ""], ["なぜかというと", "理由", "掘り下げ", "中立", "口語", "句", "〜からだ", "具体", ""], ["なぜならば", "理由", "掘り下げ", "中立", "硬い", "接続詞", "〜からだ", "具体", "文末の「からだ」を落としやすい"], ["なにしろ", "理由（強調）", "掘り下げ", "中立", "口語", "副詞", "", "具体", ""], ["なによりも", "強調（最上）", "評価・強調", "中立", "中立", "副詞", "", "具体", ""], ["ならば", "仮定（順接条件）", "掘り下げ", "中立", "硬い", "接続詞", "", "具体", ""], ["なんでも", "伝聞", "掘り下げ", "中立", "口語", "呼応副詞", "なんでも〜そうだ／〜らしい", "具体", ""], ["まるで", "比喩", "掘り下げ", "中立", "中立", "呼応副詞", "まるで〜ようだ", "具体", ""], ["もし", "仮定", "掘り下げ", "中立", "中立", "呼応副詞", "もし〜なら／〜たら", "具体", ""], ["もとより", "当然・前提", "評価・強調", "中立", "硬い", "副詞", "", "具体", ""], ["やはり", "予想との一致", "評価・強調", "中立", "中立", "副詞", "", "具体", ""], ["ゆえに", "順接（帰結）", "順方向", "中立", "硬い", "接続詞", "", "具体", "まとめの方向"], ["案の定", "予想との一致", "評価・強調", "マイナス", "中立", "副詞", "", "具体", "悪い予想が当たった場面で多い"], ["結局", "帰結（総括）", "順方向", "中立", "中立", "副詞", "", "具体", "まとめの方向"], ["実際", "例証（裏づけ）", "掘り下げ", "中立", "中立", "副詞", "", "具体", ""], ["そうしましたところ", "順接（継起）", "順方向", "中立", "硬い", "句", "", "具体", "報告文向きの丁寧な言い方"], ["あるいは", "選択", "選択・修正", "中立", "中立", "接続詞", "", "否定", "逆接ではない"], ["いくらなんでも", "否定呼応（限度）", "否定呼応", "マイナス", "口語", "呼応副詞", "〜ない／〜すぎる", "否定", ""], ["いやいや", "修正（打ち消し）", "選択・修正", "中立", "口語", "感動詞", "", "否定", ""], ["けれど", "逆接", "逆接・対比", "中立", "口語", "接続詞", "", "否定", ""], ["けれども", "逆接", "逆接・対比", "中立", "中立", "接続詞", "", "否定", ""], ["こういうと", "前置き（誤解の予防）", "補足・制限", "中立", "中立", "句", "", "否定", "「こういうと〜と思われるかもしれないが」"], ["しかし", "逆接", "逆接・対比", "中立", "中立", "接続詞", "", "否定", "最も標準的な逆接"], ["しかしながら", "逆接", "逆接・対比", "中立", "硬い", "接続詞", "", "否定", ""], ["そうでなかったら", "仮定（否定条件）", "掘り下げ", "中立", "口語", "句", "", "否定", "逆接ではなく条件"], ["そうは言っても", "譲歩→逆接", "逆接・対比", "中立", "中立", "句", "", "否定", ""], ["そのいっぽう", "対比", "逆接・対比", "中立", "中立", "句", "", "否定", ""], ["そのくせ", "逆接（非難）", "逆接・対比", "マイナス", "口語", "接続詞", "", "否定", ""], ["それでいて", "逆接（両立）", "逆接・対比", "中立", "中立", "接続詞", "", "否定", "相反する性質が同居する"], ["それでも", "逆接（譲歩）", "逆接・対比", "中立", "中立", "接続詞", "", "否定", ""], ["それとも", "選択（疑問）", "選択・修正", "中立", "中立", "接続詞", "", "否定", "逆接ではない"], ["それなのに", "逆接（不満・意外）", "逆接・対比", "マイナス", "中立", "接続詞", "", "否定", ""], ["それに対して", "対比", "逆接・対比", "中立", "中立", "句", "", "否定", ""], ["だが", "逆接", "逆接・対比", "中立", "硬い", "接続詞", "", "否定", "だ・である調向き"], ["ただ", "制限・補足", "補足・制限", "中立", "中立", "接続詞", "", "否定", ""], ["ただし", "制限（条件）", "補足・制限", "中立", "中立", "接続詞", "", "否定", ""], ["というより", "修正（言い直し）", "選択・修正", "中立", "中立", "句", "", "否定", ""], ["というよりも", "修正（言い直し）", "選択・修正", "中立", "中立", "句", "", "否定", ""], ["といっても", "制限（期待の引き下げ）", "補足・制限", "中立", "中立", "句", "", "否定", ""], ["どうにも", "否定呼応（手立てなし）", "否定呼応", "マイナス", "中立", "呼応副詞", "どうにも〜ない", "否定", ""], ["ところが", "逆接（意外）", "逆接・対比", "意外", "中立", "接続詞", "", "否定", "予想外の展開を示す"], ["とはいえ", "譲歩→逆接", "逆接・対比", "中立", "中立", "接続詞", "", "否定", ""], ["なにも", "否定呼応", "否定呼応", "中立", "口語", "呼応副詞", "なにも〜ない／なにも〜なくても", "否定", ""], ["なんとも", "否定呼応・強調", "否定呼応", "中立", "中立", "呼応副詞", "なんとも〜ない／なんとも〜だ", "否定", "否定にも強調にも使う"], ["べつに", "否定呼応", "否定呼応", "中立", "口語", "呼応副詞", "べつに〜ない", "否定", ""], ["まあ、それは冗談ですけれど", "修正（冗談の回収）", "選択・修正", "中立", "口語", "句", "", "否定", ""], ["むしろ", "修正（比較の逆転）", "選択・修正", "中立", "中立", "副詞", "", "否定", ""]];
+const EXTRA = [
+  ["要するに","要約","掘り下げ","中立","中立","副詞","","",""],
+  ["このように","まとめ","構成・転換","中立","中立","副詞","","",""],
+  ["以上のように","まとめ","構成・転換","中立","硬い","句","","",""],
+  ["たしかに","譲歩","逆接・対比","中立","中立","副詞","たしかに〜。しかし〜","",""],
+  ["逆に","対比","逆接・対比","中立","中立","副詞","","",""],
+  ["反対に","対比","逆接・対比","中立","中立","副詞","","",""],
+  ["ちなみに","補足","補足・制限","中立","中立","接続詞","","",""],
+  ["だから","順接（帰結）","順方向","中立","口語","接続詞","","",""],
+  ["言うなれば","換言（比喩）","掘り下げ","中立","中立","句","","",""],
+  ["裏を返せば","換言（反対の面から）","掘り下げ","中立","中立","句","","",""],
+  ["そもそも","話題転換（根本へ戻る）","構成・転換","中立","中立","副詞","","",""],
+  ["かくして","時間（経過のまとめ）・帰結","時間","中立","硬い","接続詞","","",""],
+  ["さりとて","逆接（譲歩）","逆接・対比","中立","中立","接続詞","","",""],
+  ["さもなくば","仮定（否定条件）","掘り下げ","中立","硬い","接続詞","","",""],
+  ["ともあれ","総括","順方向","中立","中立","副詞","","",""]
+];
+// 漢字表記などの別表記 → 辞書の見出し
+const ALIAS = {"例えば":"たとえば","従って":"したがって","更に":"さらに","但し":"ただし","即ち":"すなわち","実は":"じつは","勿論":"もちろん","恐らく":"おそらく","因みに":"ちなみに","先ず":"まず","若し":"もし","尤も":"もっとも","然し":"しかし","矢張り":"やはり","確かに":"たしかに","幸い":"さいわい","今思えば":"いま思えば","今は":"いまは","何しろ":"なにしろ","何よりも":"なによりも","別に":"べつに","或いは":"あるいは","及び":"および","尚且つ":"なおかつ","寧ろ":"むしろ","流石に":"さすがに","全く":"まったく","一応":"いちおう","如何にも":"いかにも","早速":"さっそく","暫く":"しばらく","忽ち":"たちまち","丁度":"ちょうど","大体":"だいたい","普通":"ふつう","殊に":"ことに","所で":"ところで","言わば":"いわば","所が":"ところが","其の上":"その上","然も":"しかも","又しても":"またしても","一様に":"いちように","何にせよ":"いずれにせよ","とは言え":"とはいえ","と言っても":"といっても","と言うより":"というより","と言うのも":"というのも","と言うことは":"ということは","付け加えると":"つけ加えると","其れでも":"それでも","いうなれば":"言うなれば","うらをかえせば":"裏を返せば","抑も":"そもそも","斯くして":"かくして","然りとて":"さりとて","然もなくば":"さもなくば"};
+
+// 意味（一覧表に表示）
+const MEAN = {
+"はじめに":"話の最初に置く","まず":"最初の項目を示す","まずもって":"何よりも先に","次に":"続く項目を示す","最後に":"締めくくりの項目を示す",
+"さて":"話を本題に移す","ところで":"別の話題に移る","そういえば":"連想で別の話を思い出す","そうそう":"ふと思い出したことを添える","それにしても":"話を受けて感想に戻る",
+"ついでにいっておくと":"本筋から外れた情報を添える","それはともかくとして":"脱線から本題に戻る","ふと":"何かの拍子に、不意に",
+"いざ":"実際にその場になると","いつしか":"気づかないうちに","いまは":"現在では","いま思えば":"振り返ってみると","こうして":"このようにして（経緯の結果）",
+"このとき":"その時点で","さっそく":"すぐに取りかかって","しばらく":"少しの間","そういうときに":"そうした場面で","それからもなおしばらく":"その後も少しの間",
+"それまで":"その時点より前は","たちまち":"あっという間に","ちょうど":"時がぴったり合って","やがて":"そのうちに、まもなく","やっと":"待ち望んだ末に",
+"またしても":"またもや同じことが","いかにも":"本当にそれらしく","いずれにしたって":"どちらにしても","いずれにしろ":"どちらにしても","いずれにせよ":"どちらにしても",
+"いずれも":"どれもみな","いちように":"どれも同じように","おそらく":"たぶん","おまけに":"そのうえ（悪いことが重なる）","および":"〜と〜（並べる）",
+"くどいようですが":"繰り返しになるが念を押すと","このへんは":"この点については","さいわい":"運よく","さすがに":"予想どおり／いくら何でも",
+"さらに":"そのうえ加えて","しかたがないから":"ほかに手がないので","しかも":"そのうえ","すると":"そうしたところ","そうして":"そのようにして、それから",
+"そして":"それから、加えて","そのへんは":"その点については","その上":"そのうえ加えて","そりゃあ":"それは当然","それから":"その次に、加えて",
+"それだけでなく":"それに加えて","それでは":"それなら、では次に","それと":"それに加えて","それどころか":"そんな程度ではなく、もっと","それに":"そのうえ",
+"だいたい":"そもそも（批判の前置き）","ついでに":"その機会に合わせて","つけ加えると":"補足すると","ですから":"だから（丁寧）","というのと":"それに加えて",
+"なお":"付け加えると","なおかつ":"そのうえさらに","ふつう":"一般的には","ほかにも":"それ以外にも","ましていわんや":"なおさら",
+"また":"同じく、加えて","まったく":"本当に（呆れ）","もうひとつ":"さらに一つ加えると","もちろん":"言うまでもなく","もっとも":"ただし（但し書き）",
+"やれ":"あれこれと（不満を並べる）","加えて":"さらに","言い換えれば":"別の言葉で言うと","重ねて":"繰り返して","同様に":"同じように",
+"あまつさえ":"そのうえ悪いことに","いちおう":"ひとまず、不十分ながら","いっそのこと":"思い切って","いわば":"たとえて言えば","きっと":"間違いなく（強い推量）",
+"こういった":"このような","ここで":"この場面で、この時点で","こちらは":"一方こちら側は","ことに":"とりわけ、特に","したがって":"だから（論理的な帰結）",
+"じつは":"本当のところは","すなわち":"つまり","そうなると":"その場合は","そこで":"そういうわけで（対応する）","そこへいくと":"それに比べると",
+"そのせいか":"それが原因なのか","そのためだろうか":"それが理由なのか","その結果":"そうしたことで","それだけに":"そうであるからこそいっそう",
+"それについては":"その件に関しては","だからこそ":"そういう理由があるからこそ","たとえ":"仮に〜しても","たとえば":"例を挙げると","だとしたら":"もしそうなら",
+"つまり":"要するに、言い換えると","であればですよ":"もしそうであるなら","では":"それなら","ということは":"つまり（推論）","というのも":"なぜかというと",
+"どうしても":"どうやっても","どうせ":"結局は（諦め）","どうも":"なんとなく〜のようだ","どうやら":"どうも〜らしい","なぜかというと":"理由を言うと",
+"なぜならば":"その理由は","なにしろ":"なんといっても","なによりも":"ほかの何よりも","ならば":"それなら","なんでも":"聞いた話では",
+"まるで":"ちょうど〜のように","もし":"仮に","もとより":"もともと、言うまでもなく","やはり":"予想どおり","ゆえに":"だから（論理的な帰結）",
+"案の定":"思ったとおり（悪い予想）","結局":"最終的には","実際":"本当に、現実に","そうしましたところ":"そうしたら（報告）",
+"あるいは":"または","いくらなんでも":"どう考えても度が過ぎて","いやいや":"いや、そうではなく","けれど":"しかし","けれども":"しかし",
+"こういうと":"このように言うと","しかし":"けれども","しかしながら":"しかし（硬い）","そうでなかったら":"もしそうでなければ","そうは言っても":"とはいえ",
+"そのいっぽう":"他方で","そのくせ":"それなのに（非難）","それでいて":"それなのに同時に","それでも":"そうであっても","それとも":"または（疑問）",
+"それなのに":"そうであるのに","それに対して":"それと比べて","だが":"しかし","ただ":"ただし、とはいえ","ただし":"例外や条件を添えると",
+"というより":"言い直すと","というよりも":"言い直すと","といっても":"そうは言うものの","どうにも":"どうやっても（〜ない）","ところが":"予想に反して",
+"とはいえ":"そうは言っても","なにも":"特に（〜ない）","なんとも":"何とも言えず／本当に","べつに":"特に（〜ない）","まあ、それは冗談ですけれど":"冗談を打ち消して話を戻す",
+"むしろ":"どちらかと言えば","要するに":"まとめると","このように":"以上のように","以上のように":"これまで述べたように","たしかに":"いったん認めると（譲歩）",
+"逆に":"反対に","反対に":"逆に","ちなみに":"ついでに言うと","だから":"そういうわけで",
+"言うなれば":"たとえて言えば","裏を返せば":"反対の面から見ると","そもそも":"話を根本に戻すと","かくして":"このようにして（硬い）",
+"さりとて":"そうかといって","さもなくば":"そうでなければ","ともあれ":"何はともあれ、とにかく"
+};
+const ENTRIES = RAW.concat(EXTRA).map((r,i)=>({w:r[0],rel:r[1],core:r[1].replace(/（.*?）/g,""),g:r[2],t:r[3],s:r[4],k:r[5],c:r[6],m:MEAN[r[0]]||"",i}));
+const BY = new Map(ENTRIES.map(e=>[e.w,e]));
+const KEYS = [...ENTRIES.map(e=>e.w), ...Object.keys(ALIAS)].sort((a,b)=>b.length-a.length);
+const lookup = k => BY.get(ALIAS[k]||k);
+const BOUND = /[\s。．.！!？?」』）)、，,…―—・「『(（]/;
+
+const $ = id => document.getElementById(id);
+const ed=$("ed"), pop=$("pop"), mirror=$("mirror"), sheet=$("sheet");
+let state = {open:false, match:null, list:[], sel:-1, suppress:false};
+
+/* ---------- 検出 ---------- */
+function isBoundary(text, idx){ return idx===0 || BOUND.test(text[idx-1]); }
+function findBefore(text, pos){
+  let end = pos, trail = "";
+  if (/[、，,]/.test(text[end-1]||"")) { trail = text[end-1]; end--; }
+  const head = text.slice(Math.max(0,end-16), end);
+  for (const k of KEYS){
+    if (head.endsWith(k)){
+      const start = end - k.length;
+      if (isBoundary(text,start)) return {start, end, key:k, entry:lookup(k)};
+    }
+  }
+  return null;
+}
+
+/* ---------- 候補 ---------- */
+function prefOk(e){
+  const p = $("pref").value;
+  if (p==="casual") return e.s!=="硬い";
+  if (p==="formal") return e.s!=="口語";
+  return true;
+}
+function candidates(e){
+  return ENTRIES.filter(x=>x.w!==e.w && prefOk(x)).map(x=>{
+    let sc = 0;
+    if (x.rel===e.rel) sc=3; else if (x.core===e.core) sc=2; else if (x.g===e.g) sc=1;
+    if (sc && x.t===e.t) sc+=0.5;
+    return {x,sc};
+  }).filter(o=>o.sc>=1).sort((a,b)=>b.sc-a.sc||a.x.i-b.x.i).slice(0,14).map(o=>o.x);
+}
+
+/* ---------- キャレット位置 ---------- */
+function caretRect(pos){
+  const cs = getComputedStyle(ed);
+  mirror.style.width = ed.clientWidth+"px";
+  mirror.style.top = ed.offsetTop+"px";
+  mirror.style.left = ed.offsetLeft+"px";
+  mirror.style.font = cs.font; mirror.style.letterSpacing = cs.letterSpacing;
+  mirror.textContent = ed.value.slice(0,pos);
+  const sp = document.createElement("span"); sp.textContent = "​";
+  mirror.appendChild(sp);
+  const lh = parseFloat(cs.lineHeight)||34;
+  const out = {top: ed.offsetTop + sp.offsetTop - ed.scrollTop, left: sp.offsetLeft, lh};
+  mirror.textContent = ""; // 計測用の複製を残さない（ページの高さが伸びないように）
+  return out;
+}
+
+/* ---------- ポップアップ ---------- */
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tags = e=>`<span class="tags"><span class="tag t-${e.t}">${e.t}</span><span class="tag s-${e.s}">${e.s}</span></span>`;
+function open(match){
+  state.match = match; state.list = candidates(match.entry); state.sel = -1; state.open = true;
+  const e = match.entry;
+  const aliasNote = match.key!==e.w ? `（${esc(e.w)}）` : "";
+  pop.innerHTML = `<div class="pophead"><b>${esc(match.key)}${aliasNote}</b>
+    <div class="meta"><span>${esc(e.g)} ／ ${esc(e.rel)}</span>${tags(e)}</div>
+    ${e.c?`<div class="kochu">呼応：${esc(e.c)}</div>`:""}</div>
+    ${state.list.length?`<ul>${state.list.map((x,i)=>`<li role="option" id="opt${i}" data-i="${i}" aria-selected="false"><span class="cw">${esc(x.w)}</span>${tags(x)}<span class="cr">${esc(x.rel)}${x.c?" ・ 呼応："+esc(x.c):""}</span></li>`).join("")}</ul>`
+      :`<div class="empty">この文体の設定では候補がありません。</div>`}
+    <div class="pophint">↓ / Tab で選択、Enter で置き換え、Esc で閉じる</div>`;
+  pop.hidden = false;
+  markDict(e);
+  const r = caretRect(match.end);
+  const sw = sheet.clientWidth, pw = pop.offsetWidth;
+  pop.style.left = Math.max(12, Math.min(r.left - 20, sw - pw - 12)) + "px";
+  // 下に入りきらないときはキャレットの上に出す
+  const sh = sheet.clientHeight, ul = pop.querySelector("ul");
+  if (ul) ul.style.maxHeight = Math.max(90, Math.min(260, sh - (pop.offsetHeight - ul.offsetHeight) - 16)) + "px";
+  const ph = pop.offsetHeight;
+  let top = r.top + r.lh;
+  if (top + ph > sh - 8) top = (r.top - ph - 4 >= 8) ? r.top - ph - 4 : sh - ph - 8;
+  pop.style.top = Math.max(8, Math.min(top, sh - ph - 8)) + "px";
+}
+function close(){ state.open=false; state.match=null; pop.hidden=true; }
+function highlight(){
+  pop.querySelectorAll("li").forEach((li,i)=>li.setAttribute("aria-selected", i===state.sel));
+  const cur = pop.querySelector(`li[data-i="${state.sel}"]`);
+  if (cur) cur.scrollIntoView({block:"nearest"});
+}
+function apply(i){
+  const m = state.match, x = state.list[i]; if(!m||!x) return;
+  ed.focus();
+  ed.setSelectionRange(m.start, m.end);
+  state.suppress = true;
+  let ok = false;
+  try { ok = document.execCommand("insertText", false, x.w); } catch(_) {}
+  if (!ok){ ed.setRangeText(x.w, m.start, m.end, "end"); onChange(); }
+  // 読点を挟んでいた場合はその後ろへ
+  const after = m.start + x.w.length;
+  const p = /[、，,]/.test(ed.value[after]||"") ? after+1 : after;
+  ed.setSelectionRange(p,p);
+  close();
+}
+
+/* ---------- 入力イベント ---------- */
+function detect(){
+  if (ed.selectionStart!==ed.selectionEnd){ close(); return; }
+  const m = findBefore(ed.value, ed.selectionEnd);
+  if (m && m.entry) open(m); else close();
+}
+ed.addEventListener("input", e=>{
+  onChange();
+  if (e.isComposing) return;
+  if (state.suppress){ state.suppress=false; close(); return; }
+  detect();
+});
+ed.addEventListener("compositionend", ()=>setTimeout(()=>{ if(!state.suppress) detect(); },0));
+ed.addEventListener("keydown", e=>{
+  if (e.isComposing || e.keyCode===229) return;
+  if (e.altKey && e.key==="ArrowDown"){ e.preventDefault(); detect(); if(state.open){state.sel=0;highlight();} return; }
+  if (!state.open) return;
+  const n = state.list.length;
+  if ((e.key==="ArrowDown" || (e.key==="Tab" && !e.shiftKey)) && n){ e.preventDefault(); state.sel=(state.sel+1)%n; highlight(); }
+  else if ((e.key==="ArrowUp" || (e.key==="Tab" && e.shiftKey)) && n){ e.preventDefault(); state.sel = state.sel<=0 ? n-1 : state.sel-1; highlight(); }
+  else if (e.key==="Enter"){ if (state.sel>=0){ e.preventDefault(); apply(state.sel); } else close(); }
+  else if (e.key==="Escape"){ e.preventDefault(); close(); }
+  else if (["ArrowLeft","ArrowRight","Home","End","PageUp","PageDown"].includes(e.key)) close();
+});
+pop.addEventListener("mousedown", e=>{ const li=e.target.closest("li"); if(li){ e.preventDefault(); apply(+li.dataset.i); } });
+ed.addEventListener("blur", ()=>setTimeout(()=>{ if(document.activeElement!==ed) close(); },120));
+ed.addEventListener("click", close);
+ed.addEventListener("scroll", ()=>{ if(state.open) open(state.match); });
+$("pref").addEventListener("change", ()=>{ store("pref",$("pref").value); renderDict(); if(state.open) open(state.match); });
+
+/* ---------- 文字数 ---------- */
+// 改行は数えない。絵文字なども1文字として数える
+function updateCount(){
+  const n = Array.from(ed.value.replace(/\r?\n/g,"")).length;
+  $("chars").textContent = n.toLocaleString("ja-JP");
+}
+
+/* ---------- 保存 ---------- */
+function load(k){ try{ return localStorage.getItem("tsunagi:"+k); }catch(_){ return null; } }
+function store(k,v){ try{ localStorage.setItem("tsunagi:"+k,v); return true; }catch(_){ return false; } }
+let timer=null;
+function onChange(){
+  updateCount();
+  clearTimeout(timer);
+  timer = setTimeout(()=>{
+    const ok = store("day:"+$("day").value, ed.value);
+    $("status").textContent = ok ? "自動保存しました" : "このブラウザでは自動保存できません。「テキストで保存」を使ってください";
+  },400);
+}
+// タブを閉じる・再読み込みする直前にも保存する
+window.addEventListener("pagehide", ()=>{ clearTimeout(timer); store("day:"+$("day").value, ed.value); });
+function today(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+function showDay(){
+  const v = $("day").value;
+  ed.value = load("day:"+v) || "";
+  close(); updateCount(); $("status").textContent="";
+}
+$("day").addEventListener("change", ()=>{ if(!$("day").value) $("day").value=today(); showDay(); });
+/* ---------- 一覧表 ---------- */
+const GROUPS=["構成・転換","時間","順方向","掘り下げ","補足・制限","逆接・対比","選択・修正","評価・強調","否定呼応"];
+const dict={g:null,q:"",cur:null};
+// 絞り込みラベルのアイコン（16×16の線画）
+const GICON={
+  "すべて":'<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/>',
+  "構成・転換":'<path d="M6 4h7.5M6 8h7.5M6 12h7.5"/><path d="M2.75 4h.01M2.75 8h.01M2.75 12h.01" stroke-width="2.4"/>',
+  "時間":'<circle cx="8" cy="8" r="5.75"/><path d="M8 4.75V8l2.25 1.5"/>',
+  "順方向":'<path d="M2.5 8h10M9 4.5 12.5 8 9 11.5"/>',
+  "掘り下げ":'<circle cx="7" cy="7" r="4.25"/><path d="m10.25 10.25 3.25 3.25"/>',
+  "補足・制限":'<circle cx="8" cy="8" r="5.75"/><path d="M8 5.25v5.5M5.25 8h5.5"/>',
+  "逆接・対比":'<path d="M2.5 5.5h10M10 3l2.5 2.5L10 8M13.5 10.5h-10M6 8l-2.5 2.5L6 13"/>',
+  "選択・修正":'<path d="M10.5 2.75l2.75 2.75L6 12.75H3.25V10z"/>',
+  "評価・強調":'<path d="M8 2.25l1.75 3.6 3.95.55-2.85 2.8.7 3.95L8 11.3l-3.55 1.85.7-3.95L2.3 6.4l3.95-.55z"/>',
+  "否定呼応":'<circle cx="8" cy="8" r="5.75"/><path d="m4 12 8-8"/>'
+};
+const GDESC={
+  "すべて":"すべての語を表示","構成・転換":"文章の順序や話題の切り替え（まず、さて など）","時間":"時の流れや場面（やがて、このとき など）",
+  "順方向":"同じ向きに話を進める（そして、さらに、したがって など）","掘り下げ":"理由・例・言い換え・仮定・推量（つまり、たとえば など）",
+  "補足・制限":"情報を添える、条件をつける（なお、ただし など）","逆接・対比":"話を反転させる、比べる（しかし、一方 など）",
+  "選択・修正":"どちらかを選ぶ、言い直す（あるいは、むしろ など）","評価・強調":"気持ちや評価を添える（やはり、さいわい など）",
+  "否定呼応":"後ろに打ち消しが来る（べつに〜ない など）"
+};
+const gicon=k=>`<svg class="gi" viewBox="0 0 16 16" aria-hidden="true">${GICON[k]||""}</svg>`;
+function renderDict(){
+  const gb=$("dgroups");
+  gb.innerHTML=[null,...GROUPS].map(g=>{const k=g??"すべて";return `<button type="button" class="gbtn" data-g="${g??""}" aria-pressed="${dict.g===g}" title="${GDESC[k]}">${gicon(k)}<span>${k}</span></button>`;}).join("");
+  const list=ENTRIES.filter(e=>(!dict.g||e.g===dict.g)&&(!dict.q||(e.w+e.rel+e.g+e.c+e.m).includes(dict.q)))
+    .sort((a,b)=>GROUPS.indexOf(a.g)-GROUPS.indexOf(b.g)||a.i-b.i);
+  $("dcount").textContent=`${list.length} / ${ENTRIES.length}語`;
+  $("drows").innerHTML=list.map(e=>{
+    const cls=[prefOk(e)?"":"off", dict.cur&&e.g===dict.cur.g?"near":"", dict.cur&&e.w===dict.cur.w?"cur":""].join(" ").trim();
+    return `<tr data-w="${esc(e.w)}" class="${cls}"><td class="dw">${esc(e.w)}<span class="dg">${esc(e.g)}</span></td><td>${e.m?`<span class="dm">${esc(e.m)}</span>`:""}<div class="dr"><span>${esc(e.rel)}</span>${tags(e)}</div>${e.c?`<span class="dc">呼応：${esc(e.c)}</span>`:""}</td></tr>`;
+  }).join("") || `<tr><td colspan="2" class="empty">該当する語がありません。</td></tr>`;
+}
+$("dgroups").addEventListener("click",e=>{ const b=e.target.closest(".gbtn"); if(!b) return; dict.g=b.dataset.g||null; renderDict(); });
+$("dq").addEventListener("input",e=>{ dict.q=e.target.value.trim(); renderDict(); });
+$("drows").addEventListener("click",e=>{
+  const tr=e.target.closest("tr[data-w]"); if(!tr) return;
+  ed.focus(); state.suppress=true;
+  let ok=false; try{ ok=document.execCommand("insertText",false,tr.dataset.w); }catch(_){}
+  if(!ok){ ed.setRangeText(tr.dataset.w, ed.selectionStart, ed.selectionEnd, "end"); state.suppress=false; onChange(); }
+  close();
+});
+function markDict(entry){ const w=entry?entry.w:null; if((dict.cur&&dict.cur.w)===w) return; dict.cur=entry||null; renderDict();
+  const row=$("drows").querySelector("tr.cur"), box=document.querySelector(".dbox");
+  if(row && box) box.scrollTop=Math.max(0,row.offsetTop-box.clientHeight/3);
+}
+
+let copyTimer=null;
+function copyFeedback(msg){
+  const b=$("copy"); b.textContent=msg;
+  clearTimeout(copyTimer); copyTimer=setTimeout(()=>{ b.textContent="本文をコピー"; },2000);
+}
+function copyFallback(){
+  const s=ed.selectionStart, e=ed.selectionEnd;
+  ed.focus(); ed.select();
+  let ok=false; try{ ok=document.execCommand("copy"); }catch(_){}
+  ed.setSelectionRange(s,e);
+  copyFeedback(ok ? "コピーしました" : "コピーできませんでした");
+}
+$("copy").addEventListener("click", ()=>{
+  if (!ed.value){ copyFeedback("本文が空です"); return; }
+  close();
+  if (navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(ed.value).then(()=>copyFeedback("コピーしました"), copyFallback);
+  } else copyFallback();
+});
+$("export").addEventListener("click", ()=>{
+  const blob = new Blob([ed.value],{type:"text/plain;charset=utf-8"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `日記_${$("day").value}.txt`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+
+$("day").value = today();
+$("pref").value = load("pref") || "all";
+showDay();
+renderDict();
+ed.focus();
+</script>
+</body>
+</html>
